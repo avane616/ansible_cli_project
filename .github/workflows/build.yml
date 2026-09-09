@@ -7,6 +7,11 @@ jobs:
   run-ansible:
     runs-on: ubuntu-latest
 
+
+    env:
+      user: ${{ secrets.SNOW_USER }}
+      password: ${{ secrets.SNOW_PASSWORD }}
+      
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
