@@ -2,9 +2,6 @@ name: Run Ansible Playbook
 
 on:
   workflow_dispatch:
-  # push:
-  #   branches:
-  #     - main
 
 jobs:
   run-ansible:
@@ -21,10 +18,3 @@ jobs:
 
       - name: Verify Ansible Installation
         run: ansible --version
-
-      # - name: Run Ansible Playbook
-      #   run: |
-      #     ansible-playbook \
-      #       -i inventory/hosts.ini \
-      #       playbooks/site.yml
-`
