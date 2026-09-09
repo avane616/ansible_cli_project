@@ -1,0 +1,95 @@
+    - name: Trigger and Monitor Build Pipeline
+      block:
+        - name: Trigger Build Pipeline
+          uri:
+            url: https://dev.azure.com/{{ org_name }}/{{ project_name }}/_apis/pipelines/1626/runs?api-version=7.1-preview.1
+            method: POST
+            body_format: json
+            status_code: 200
+            url_username: "{{ az_user }}"
+            url_password: "{{ clean_azpat }}"
+            headers:
+              Content-Type: application/json
+            body:
+              {
+                "definitionId": 1626,
+                "description": "Triggered from Ansible",
+                "isDraft": false,
+                "reason": "schedule",
+                "manualEnvironments": null,
+                "resources": 
+                        {
+                        "repositories": 
+                            {"self": 
+                                { 
+                            "refName": "refs/tags/VM_{{ ChangeNumber }}"
+                            }
+                            }
+                        }
+                    }
+            return_content: yes
+            force_basic_auth: yes
+            validate_certs: no
+          register: build_trigger
+          retries: 15
+          delay: 60
+          until: build_trigger.json.state == "inProgress"
+          failed_when: false
+          delegate_to: localhost
+
+        - debug:
+            msg: "{{ build_trigger }}"
+        - set_fact:
+            build_id: "{{ build_trigger.json.id }}"
+            build_state: "{{ build_trigger.json.state }}"
+          when: build_trigger is succeeded
+        - debug:
+            msg: "build ID is {{ build_id }} and {{ build_state }}"
+      rescue:
+        - debug:
+            msg: "Unable to trigger build pipeline"
+
+    - block:
+        - name: Get the build pipeline status
+          uri:
+            url: https://dev.azure.com/{{ org_name }}/{{ project_name }}/_apis/build/builds/{{ build_id }}?api-version=7.1-preview.7
+            method: GET
+            body_format: json
+            status_code: 200
+            url_username: "{{ az_user }}"
+            url_password: "{{ clean_azpat }}"
+            headers:
+              Content-Type: application/json
+            return_content: yes
+            force_basic_auth: yes
+            validate_certs: no
+          register: build_status
+          retries: 20
+          delay: 120
+          until: build_status.json.status == "completed"
+          failed_when: false
+          delegate_to: localhost
+        
+        - fail:
+            msg: "Unable to get the status of Build Pipeline. Build Pipeline has been failed"
+          when: build_status is failed 
+        - debug:
+            msg: "{{ build_status }}"
+          when: build_status is succeeded  
+ 
+        - set_fact:
+            bstatus: "failed"
+          when: build_status.json.status == "completed" and build_status.json.result == "failed" and build_status is succeeded
+        - set_fact:
+            bstatus: "succeeded"
+          when: build_status.json.status == "completed" and build_status.json.result == "succeeded" and build_status is succeeded
+        - debug:
+            msg: "Status of build-{{ build_id }} is {{ bstatus }}"
+          when: build_status is succeeded  
+        - name: block to set error and cause if the status is failed
+          when: build_status is succeeded and bstatus == "failed" 
+          block:
+            - set_fact:
+                build_error: "Azure Devops Pipeline with Build Id {{ build_id }} is failed. Please check pipeline log for the error."
+            - fail:
+                msg: "Azure Devops Pipeline with Build Id {{ build_id }} is failed. For more details, Please check pipeline log."
