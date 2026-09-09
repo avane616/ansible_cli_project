@@ -3,6 +3,7 @@
   gather_facts: no
   vars: 
     catalog_item_name: "Server%E2%80%93Request%20New%20Virtual%20Server"
+    servicenow_instance: "https://hcltechdemosls4.service-now.com"
   tasks:
 
     - name: Get open RITMs for the catalog item
