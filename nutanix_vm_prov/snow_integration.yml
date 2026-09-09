@@ -1,0 +1,125 @@
+- name: Fetch Open RITMs and Trigger Workflow for Each
+  hosts: localhost
+  gather_facts: no
+  vars: 
+    catalog_item_name: "Server%E2%80%93Request%20New%20Virtual%20Server"
+  tasks:
+
+    - name: Get open RITMs for the catalog item
+      uri:
+        #url: "{{ servicenow_instance }}/api/now/table/sc_req_item?sysparm_query=active=true^stateIN1,2&sysparm_fields=sys_id,number,variables"
+        url: "{{ servicenow_instance }}/api/now/table/sc_req_item?sysparm_query=number=RITM0013849" #active=true^cat_item.name={{ catalog_item_name }}" #^stateIN1,2&sysparm_fields=sys_id,number,variables"
+        method: GET
+        user: "{{ lookup('env', 'user') }}"
+        password: "{{ lookup('env', 'password') }}"
+        force_basic_auth: yes
+        return_content: yes
+        headers:
+          Accept: "application/json"
+      register: ritm_response
+
+    - name: Extract RITM sys_ids and numbers
+      set_fact:
+        ritm_sys_ids: "{{ ritm_response.json.result | map(attribute='sys_id') | list }}"
+        ritm_numbers: "{{ ritm_response.json.result | map(attribute='number') | list }}"
+
+    # - name: Get group approvals for RITMs
+    #   uri:
+    #     url: "https://{{ servicenow_instance }}/api/now/table/sysapproval_approver?sysparm_query=document_idIN{{ ritm_sys_ids | join(',') }}"
+    #     method: GET
+    #     user: "{{ user }}"
+    #     password: "{{ password }}"
+    #     force_basic_auth: yes
+    #     return_content: yes
+    #     headers:
+    #       Accept: "application/json"
+    #   register: group_approvals
+
+    # - name: Filter approved RITMs based on group approvals
+    #   set_fact:
+    #     approved_ritm_ids: >-
+    #       {{
+    #         group_approvals.json.result
+    #         | selectattr('state', 'equalto', 'approved')
+    #         | map(attribute='document_id.value')
+    #         | list
+    #       }}
+
+    # - name: Filter approved RITM numbers
+    #   set_fact:
+    #     approved_ritm_numbers: >-
+    #       {{
+    #         ritm_response.json.result
+    #         | selectattr('sys_id', 'in', approved_ritm_ids)
+    #         | map(attribute='number')
+    #         | list
+    #       }}
+
+    # - name: Display approved RITM numbers
+    #   debug:
+    #     msg: "{{ approved_ritm_numbers }}"
+
+    - name: Set RITMs to Work in Progress with a comment
+      uri:
+        url: "{{ servicenow_instance }}/api/now/table/sc_req_item?sysparm_query=number={{ item }}"
+        method: GET
+        user: "{{ lookup('env', 'user') }}"
+        password: "{{ lookup('env', 'password') }}"
+        force_basic_auth: yes
+        headers:
+          Content-Type: "application/json"
+        return_content: yes
+        status_code: 200
+      register: ritm_details
+      loop: "{{ ritm_numbers }}"
+      #loop: "{{ approved_ritm_numbers }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Update RITM state and work notes
+      uri:
+        url: "{{ servicenow_instance }}/api/now/table/sc_req_item/{{ item.json.result[0].sys_id }}"
+        method: PUT
+        user: "{{ lookup('env', 'user') }}"
+        password: "{{ lookup('env', 'password') }}"
+        force_basic_auth: yes
+        headers:
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          state: "2"  # Work in Progress
+          work_notes: |
+            This request has been picked up by the VELUX Automation Team.
+            Initial analysis is underway and work has commenced.
+            Further updates will be provided as progress continues.
+        return_content: yes
+        status_code: 200
+      loop: "{{ ritm_details.results }}"
+      loop_control:
+        label: "{{ item.json.result[0].number }}"
+
+    - name: Trigger AWX job template for each RITM
+      uri:
+        url: "http://10.223.17.5/api/v2/job_templates/9/launch/"
+        method: POST
+        user: "{{ lookup('env', 'username') }}"
+        password: "{{ lookup('env', 'userpassword') }}"
+        force_basic_auth: yes
+        validate_certs: no
+        headers:
+          Content-Type: "application/json"
+        body_format: json
+        status_code: [200, 201]
+        body: >
+          {{
+            dict(
+              extra_vars=dict(
+                ritm_number=item
+              )
+            )
+          }}
+      loop: "{{ ritm_numbers }}"
+      loop_control:
+        label: "{{ item }}"
+      register: job_launch_result
+
