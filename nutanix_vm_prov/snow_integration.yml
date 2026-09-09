@@ -99,28 +99,36 @@
       loop_control:
         label: "{{ item.json.result[0].number }}"
 
-    - name: Trigger AWX job template for each RITM
-      uri:
-        url: "http://10.223.17.5/api/v2/job_templates/9/launch/"
-        method: POST
-        user: "{{ lookup('env', 'username') }}"
-        password: "{{ lookup('env', 'userpassword') }}"
-        force_basic_auth: yes
-        validate_certs: no
-        headers:
-          Content-Type: "application/json"
-        body_format: json
-        status_code: [200, 201]
-        body: >
-          {{
-            dict(
-              extra_vars=dict(
-                ritm_number=item
-              )
-            )
-          }}
+    - name: Run Resource Provisioning Tasks
+      include_tasks: resource_provisioning.yml
       loop: "{{ ritm_numbers }}"
       loop_control:
         label: "{{ item }}"
-      register: job_launch_result
+      register: job_result
+
+    
+    # - name: Trigger AWX job template for each RITM
+    #   uri:
+    #     url: "http://10.223.17.5/api/v2/job_templates/9/launch/"
+    #     method: POST
+    #     user: "{{ lookup('env', 'username') }}"
+    #     password: "{{ lookup('env', 'userpassword') }}"
+    #     force_basic_auth: yes
+    #     validate_certs: no
+    #     headers:
+    #       Content-Type: "application/json"
+    #     body_format: json
+    #     status_code: [200, 201]
+    #     body: >
+    #       {{
+    #         dict(
+    #           extra_vars=dict(
+    #             ritm_number=item
+    #           )
+    #         )
+    #       }}
+    #   loop: "{{ ritm_numbers }}"
+    #   loop_control:
+    #     label: "{{ item }}"
+    #   register: job_launch_result
 
