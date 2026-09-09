@@ -1,0 +1,41 @@
+#### Terraform Module Details ###
+sparse_checkout1:
+    - nutanix_vm_iac
+
+sparse_checkout:
+    - post_provisioning
+Release_version: "v1.0"
+repo_url: https://repoclone:{{ clean_azpat }}@velux-it-dev.visualstudio.com/Automation_PoC/_git/shared_resources
+
+##### VM vars ###
+
+nutanix_subnet_name: "Sandbox_IPAM-Vlan91"
+template_name: "Poc-redhat"
+#vm_name: "velux-poc-ubuntu"
+cluster_name: "DNKD1VNCT001"
+vm_num_sockets: "2"
+#vm_num_cores_per_socket: "1"
+#vm_num_threads_per_core: "1"
+#ChangeNumber: "CHG000005"
+required_packages: [adcli, realmd, sssd]
+required_packages1: []
+
+# ###
+# transfer_mail: bev.ext@velux.com
+# l2_group_name: "HCL Wintel Support"
+org_name: "VELUX-IT-Dev"
+project_name: "Automation_PoC"
+# Release_version: dev
+
+az_user: repoclone
+azpat: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          62653365333932643965613832613139323662666232633337306631306638353964656235646636
+          3639643030666665356365663439633133323061643938340a303436636565323366653631396336
+          33306437313463343235643035363965383561666136303337633565303133663661613763303362
+          6435356438613439390a326435313931613637643133303864393533303737396461343832636562
+          33626239323363636538316537643432373736613661383330623362366231313534633539333933
+          63373132633663613935383935386265356535373538393032663866343961373637663139306136
+          62316238646134633861626133356236333530623033623764353337656634396636626536653962
+          66306534393463343537393766333139313738306639613264386632323836333433663139656262
+          6336

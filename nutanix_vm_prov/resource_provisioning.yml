@@ -1,0 +1,242 @@
+---
+- hosts: localhost
+  gather_facts: no
+  vars:
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+    template_name: "Nutanix VM Provision"
+    servicenow_instance: "https://hcltechdemosls4.service-now.com"
+    assignment_group: "Nutanix%20Automation%20group"
+  tasks:
+    - name: Get variable mappings for each RITM with display values
+      uri:
+        url: "{{ servicenow_instance }}/api/now/table/sc_item_option_mtom?sysparm_query=request_item.number={{ ritm_number }}&sysparm_display_value=true"
+        method: GET
+        user: "{{ lookup('env', 'user') }}"
+        password: "{{ lookup('env', 'password') }}"
+        force_basic_auth: yes
+        return_content: yes
+        headers:
+          Accept: "application/json"
+      register: mtom_response
+
+    - name: Show mtom response
+      debug: 
+        msg: "{{ mtom_response }}"
+
+    - name: Extract variable sys_ids from sc_item_option links
+      set_fact:
+        variable_ids: "{{ mtom_response.json.result | map(attribute='sc_item_option.display_value') | list }}"
+
+    - name: Get variable values with item_option details
+      uri:
+        url: "{{ servicenow_instance }}/api/now/table/sc_item_option?sysparm_query=sys_idIN{{ variable_ids | join(',') }}&sysparm_display_value=true"
+        #url: "{{ servicenow_instance }}/api/now/table/sc_item_option?sysparm_query=sys_idIN{{ variable_ids | join(',') }}&sysparm_display_value=true&sysparm_fields=sys_id,value,item_option"
+        method: GET
+        user: "{{ lookup('env', 'user') }}"
+        password: "{{ lookup('env', 'password') }}"
+        force_basic_auth: yes
+        return_content: yes
+        headers:
+          Accept: "application/json"
+      register: variable_response
+
+    - name: Debug variable response structure
+      debug:
+        var: variable_response.json.result
+
+    - name: Map variable names to their values (excluding empty values)
+      set_fact:
+        variable_map: >-
+          {{
+            dict(
+              variable_response.json.result
+              | selectattr('value', 'defined')
+              | selectattr('value', '!=', '')
+              | map(attribute='sys_id')
+              | zip(
+                  variable_response.json.result
+                  | selectattr('value', 'defined')
+                  | selectattr('value', '!=', '')
+                  | map(attribute='value')
+                )
+            )
+          }}
+
+    # - name: Map variable names to their values (excluding empty values)
+    #   set_fact:
+    #     variable_map: >-
+    #       {{
+    #         dict(
+    #           variable_response.json.result
+    #           | selectattr('value', 'defined')
+    #           | selectattr('value', '!=', '')
+    #           | map(attribute='item_option_new.display_value')
+    #           | zip(
+    #               variable_response.json.result
+    #               | selectattr('value', 'defined')
+    #               | selectattr('value', '!=', '')
+    #               | map(attribute='value')
+    #             )
+    #         )
+    #       }}
+
+    - name: Show variable name-value map
+      debug:
+        msg: "{{ variable_map }}"
+
+    - name: Set ChangeNumber from RITM response
+      set_fact:
+        ChangeNumber: "{{ ritm_number }}"
+
+    - name: Get RITM record by number (on success)
+      uri:
+        url: "{{ servicenow_instance }}/api/now/table/sc_req_item?sysparm_query=number={{ ritm_number }}"
+        method: GET
+        user: "{{ lookup('env', 'user') }}"
+        password: "{{ lookup('env', 'password') }}"
+        force_basic_auth: yes
+        headers:
+          Content-Type: "application/json"
+        return_content: yes
+        status_code: 200
+      register: ritm_lookup_success
+
+    - name: Get Catalog Tasks for RITM
+      uri:
+        url: "{{ servicenow_instance }}/api/now/table/sc_task?sysparm_query=assignment_group={{ assignment_group }}^request_item={{ ritm_lookup_success.json.result[0].sys_id }}"
+        method: GET
+        user: "{{ lookup('env', 'user') }}"
+        password: "{{ lookup('env', 'password') }}"
+        force_basic_auth: yes
+        headers:
+          Content-Type: "application/json"
+        return_content: yes
+        status_code: 200
+      register: catalog_tasks
+
+    - name: Display Catalog task details
+      debug:
+        msg: "{{ catalog_tasks }}"
+
+    - name: Include required variables
+      block:
+        - include_vars: vars.yml
+          no_log: true
+
+        - name: Clean PAT
+          set_fact:
+            clean_azpat: "{{ azpat | trim | replace('\n', '') }}"
+          no_log: true
+
+      rescue:
+        - debug:
+            msg: "{{ Variables are not configured properly }}" 
+
+    - name: Configure anible roles and playbook
+      block:
+         - include: code_compute.yml
+           delegate_to: localhost
+         - include: tf_conf.yml
+           #no_log: true
+  
+      rescue:
+        - debug:
+            msg: "{{ required roles are not configured }}"
+
+    - name: block to perform instance Creation operation using CI/CD
+      block:
+        - include: triggerpipeline.yml
+      rescue:
+        - debug:
+            msg: "{{ Unable to trigger }}"
+    - name: Block to fetch Terraform output and capture VM details
+      block:
+        
+        - include: fetchoutput.yml
+
+        - name: Read Terraform output JSON
+          slurp:
+            src: "/tmp/terraform_outputs/tf_output.json"
+          register: tf_output_raw
+
+        - name: Parse Terraform output JSON
+          set_fact:
+            tf_output: "{{ tf_output_raw.content | b64decode | from_json }}"
+
+        - name: Capture VM name and IP
+          set_fact:
+            vm_ip: "{{ tf_output.New_VM_info.value.ip }}"
+
+        - name: Show VM details
+          debug:
+            msg:
+              - "VM IP: {{ vm_ip }}"
+      rescue:
+        - debug:
+            msg: "Unable to fetch Terraform output or extract VM details"
+
+    - name: Prepare Dynamic inventory and perform post provisioning steps
+      block:
+        - name: Prepare Dynamic Inventory
+          set_fact:
+            ip_list: "{{ vm_ip.split(',') }}"
+
+        - name: Add IPs as temporary hosts
+          add_host:
+            name: "{{ item }}"
+            groups: dynamic_targets
+          loop: "{{ ip_list }}"
+      rescue:
+        - debug:
+            msg: "Unable to prepare inventory"
+
+#####################
+# Post Provisioning #
+#####################
+
+- name: Perform post provisioning activities
+  hosts: dynamic_targets
+  gather_facts: yes
+  become: yes
+  vars:
+    domain_user: "{{ lookup('env', 'domain_user') }}"
+    domain_password: "{{ lookup('env', 'domain_password') }}"
+    scom_user: "{{ lookup('env', 'scom_user') }}"
+    scom_password: "{{ lookup('env', 'scom_password') }}"
+    root_pass: "{{ lookup('env', 'root_pass') }}"
+  tasks:
+    - name: Perform post-provision tasks
+      block:
+        - include_vars: vars.yml
+          no_log: true
+          delegate_to: localhost
+
+        - name: Clean PAT
+          set_fact:
+            clean_azpat: "{{ azpat | trim | replace('\n', '') }}"
+          no_log: true
+          delegate_to: localhost
+
+        - include: code_compute.yml
+          delegate_to: localhost
+
+        - include_role:
+            name: post_provisioning
+            tasks_from: postprov.yml
+
+        - include_role:
+            name: post_provisioning
+            tasks_from: replacefiles.yml
+
+        - include_role:
+            name: post_provisioning
+            tasks_from: updatesudoers.yml
+
+        - include_role:
+            name: post_provisioning
+            tasks_from: domainjoin.yml
+
+      rescue:
+        - name: Handle failure in post-provision tasks
+          debug:
+            msg: "One or more post-provision tasks failed. Please check logs and retry."
