@@ -3,6 +3,7 @@
   gather_facts: no
   vars: 
     catalog_item_name: "Server%E2%80%93Request%20New%20Virtual%20Server"
+    servicenow_instance: "https://hcltechdemosls4.service-now.com"
   tasks:
 
     - name: Get open RITMs for the catalog item
@@ -98,28 +99,28 @@
       loop_control:
         label: "{{ item.json.result[0].number }}"
 
-    - name: Trigger AWX job template for each RITM
-      uri:
-        url: "http://10.223.17.5/api/v2/job_templates/9/launch/"
-        method: POST
-        user: "{{ lookup('env', 'username') }}"
-        password: "{{ lookup('env', 'userpassword') }}"
-        force_basic_auth: yes
-        validate_certs: no
-        headers:
-          Content-Type: "application/json"
-        body_format: json
-        status_code: [200, 201]
-        body: >
-          {{
-            dict(
-              extra_vars=dict(
-                ritm_number=item
-              )
-            )
-          }}
-      loop: "{{ ritm_numbers }}"
-      loop_control:
-        label: "{{ item }}"
-      register: job_launch_result
+    # - name: Trigger AWX job template for each RITM
+    #   uri:
+    #     url: "http://10.223.17.5/api/v2/job_templates/9/launch/"
+    #     method: POST
+    #     user: "{{ lookup('env', 'username') }}"
+    #     password: "{{ lookup('env', 'userpassword') }}"
+    #     force_basic_auth: yes
+    #     validate_certs: no
+    #     headers:
+    #       Content-Type: "application/json"
+    #     body_format: json
+    #     status_code: [200, 201]
+    #     body: >
+    #       {{
+    #         dict(
+    #           extra_vars=dict(
+    #             ritm_number=item
+    #           )
+    #         )
+      #     }}
+      # loop: "{{ ritm_numbers }}"
+      # loop_control:
+      #   label: "{{ item }}"
+      # register: job_launch_result
 
