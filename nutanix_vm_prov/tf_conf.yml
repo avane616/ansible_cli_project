@@ -1,0 +1,34 @@
+---
+- name: prepare sparse git repository tf configuration
+  shell: |
+    git init
+    git config core.sparsecheckout true
+    git config --global user.email bev.ext.admin@velux.com
+    git config --global user.name bev.ext.admin
+    git config --global pull.rebase false
+    git remote add azrepo https://repoclone:{{ clean_azpat }}@velux-it-dev.visualstudio.com/Automation_PoC/_git/velux_iaac
+  args:
+    chdir: "{{ playbook_dir }}"
+- name: Get the latest tf configuration
+  shell: |
+    git fetch azrepo
+    git pull azrepo vm_poc --allow-unrelated-histories
+  args:
+    chdir: "{{ playbook_dir }}"
+    creates: "{{ playbook_dir }}/{{ sparse_checkout1 | first }}"
+
+- name: Configure requested input with tf configuration
+  template:
+    src: "templates/infra.yml.j2"
+    dest: "{{ playbook_dir }}/{{ sparse_checkout1 | first }}/terraform.tfvars"
+    force: yes
+  register: ansible_variables
+- name: Update the tf repo and create build tag VM_{{ ChangeNumber }}
+  shell: |
+    git checkout vm_poc
+    git add .
+    git commit -m "Added VM Input in tfvars"
+    git tag VM_{{ ChangeNumber }}
+    git push azrepo VM_{{ ChangeNumber }}
+  args:
+    chdir: "{{ playbook_dir }}/{{ sparse_checkout1 | first }}"
