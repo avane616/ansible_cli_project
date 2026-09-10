@@ -1,0 +1,8 @@
+- name: Create sudoers entry for custom user/server
+  template:
+    src: custom_sudo.j2
+    dest: /etc/sudoers.d/custom_sudo
+    owner: root
+    group: root
+    mode: '0440'
+    validate: '/usr/sbin/visudo -cf %s'
