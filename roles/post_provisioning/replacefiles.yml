@@ -1,0 +1,51 @@
+
+    - name: Backup existing sssd.conf if it exists
+      copy:
+        src: /etc/sssd/sssd.conf
+        dest: /etc/sssd/sssd.conf.bak
+        remote_src: yes
+      ignore_errors: yes
+
+    - name: Backup existing krb5.conf if it exists
+      copy:
+        src: /etc/krb5.conf
+        dest: /etc/krb5.conf.bak
+        remote_src: yes
+      ignore_errors: yes
+
+    - name: Backup existing resolv.conf if it exists
+      copy:
+        src: /etc/resolv.conf
+        dest: /etc/resolv.conf.bak
+        remote_src: yes
+      ignore_errors: yes
+
+    - name: Deploy sssd.conf using Jinja2 template
+      template:
+        src: sssd.conf.j2
+        dest: /etc/sssd/sssd.conf
+        owner: root
+        group: root
+        mode: '0600'
+
+    - name: Deploy krb5.conf using Jinja2 template
+      template:
+        src: krb5.conf.j2
+        dest: /etc/krb5.conf
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Deploy resolv.conf using Jinja2 template
+      template:
+        src: resolv.conf.j2
+        dest: /etc/resolv.conf
+        owner: root
+        group: root
+        mode: '0644'
+
+    # - name: Ensure sssd service is restarted
+    #   service:
+    #     name: sssd
+    #     state: restarted
+    #     enabled: yes
