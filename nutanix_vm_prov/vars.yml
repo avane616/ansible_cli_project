@@ -39,3 +39,8 @@ azpat: !vault |
           62316238646134633861626133356236333530623033623764353337656634396636626536653962
           66306534393463343537393766333139313738306639613264386632323836333433663139656262
           6336
+
+ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+template_name: "Nutanix VM Provision"
+servicenow_instance: "https://hcltechdemosls4.service-now.com"
+assignment_group: "Nutanix%20Automation%20group"
