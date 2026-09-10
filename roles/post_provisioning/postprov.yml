@@ -1,0 +1,88 @@
+- name: Copy folder from source to target using scp
+  ansible.builtin.shell: >
+    sshpass -p "{{ root_pass }}" scp -o StrictHostKeyChecking=no -r root@10.223.17.5:/opt/lin_packages /tmp
+  become: true
+  no_log: true
+
+###### Rapid7 Installation #######
+
+- name: Make Rapid7 installer executable
+  ansible.builtin.file:
+    path: /tmp/lin_packages/rapid7_setup/agent_installer-x86_64.sh
+    mode: '0755'
+  no_log: true
+
+- name: Check if Agent is installed
+  ansible.builtin.shell: >
+    systemctl status ir_agent || echo "Not Installed"
+  register: status
+  changed_when: false
+
+
+- name: Install and start Rapid7 Insight Agent
+  ansible.builtin.shell: >
+    ./agent_installer-x86_64.sh install_start
+  args:
+    chdir: /tmp/lin_packages/rapid7_setup
+  become: true
+  when: "'Not Installed' in status.stdout"
+  register: install_output
+  #ignore_errors: yes
+
+- name: Show installer output
+  debug:
+    var: install_output.stdout_lines
+
+- name: Validate Rapid7 agent status
+  command: systemctl status ir_agent
+  register: agent_status
+  failed_when: "'running' not in agent_status.stdout"
+
+- name: Show agent status
+  debug:
+    var: agent_status.stdout
+
+####### SNOW AGENT Installation ##########
+- name: Check if Snow Agent is installed
+  ansible.builtin.shell: >
+    rpm -q snowagent || echo "Not Installed"
+  register: snow_status
+  changed_when: false
+
+- name: Install Snow Agent only if not installed
+  ansible.builtin.shell: >
+    rpm -ivh /tmp/lin_packages/snow_agent/Velux_Linux-snowagent-7.0.0-x64.rpm
+  become: true
+  when: "'Not Installed' in snow_status.stdout"
+  register: install_output
+
+- name: Show installer output
+  debug:
+    var: install_output.stdout_lines
+  when: "'Not Installed' in snow_status.stdout"
+
+- name: Validate Snow Agent installation
+  ansible.builtin.shell: >
+    rpm -qa | grep snowagent
+  register: agent_status
+  failed_when: agent_status.stdout == ""
+  changed_when: false
+
+- name: Show agent status
+  debug:
+    var: agent_status.stdout
+
+######### ADD SCOM USER ######
+
+- name: Ensure the scomuser exists
+  user:
+    name: "scomuser"
+    password: "{{ scom_password }}"
+    shell: /bin/bash
+    state: present
+    create_home: yes
+
+- name: Move all SCOM sudoers files to /etc/sudoers.d/
+  ansible.builtin.shell: >
+    cp /tmp/lin_packages/scom_files/* /etc/sudoers.d/
+  become: true
