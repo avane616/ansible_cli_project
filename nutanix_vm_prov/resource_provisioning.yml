@@ -3,11 +3,6 @@
         - include_vars: vars.yml
           no_log: true
 
-        # - name: Clean PAT
-        #   set_fact:
-        #     clean_azpat: "{{ azpat | trim | replace('\n', '') }}"
-        #   no_log: true
-
       rescue:
         - debug:
             msg: "{{ Variables are not configured properly }}" 
@@ -122,6 +117,11 @@
     - name: Display Catalog task details
       debug:
         msg: "{{ catalog_tasks }}"
+
+    - name: Generate terraform tfvars file
+      template:
+        src: templates/infra.tfvars.j2
+        dest: "{{ playbook_dir }}/../terraform/nutanix_vm_iac/terraform.tfvars"
 
     # - name: Configure anible roles and playbook
     #   block:
