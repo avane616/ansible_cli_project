@@ -7,7 +7,6 @@ jobs:
   run-ansible:
     runs-on: ubuntu-latest
 
-
     env:
       user: ${{ secrets.SNOW_USER }}
       password: ${{ secrets.SNOW_PASSWORD }}
@@ -24,7 +23,13 @@ jobs:
       - name: Verify Ansible Installation
         run: ansible --version
 
-      - name: Run Playbook
-        run: |
-          ansible-playbook \
-            nutanix_vm_prov/snow_integration.yml
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: terraform init
+
+      - name: Terraform Plan
+        working-directory: terraform
+        run: terraform plan -var-file=terraform.tfvars
