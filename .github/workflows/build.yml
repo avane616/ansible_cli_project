@@ -26,7 +26,12 @@ jobs:
       - name: Run ServiceNow Playbook
         run: |
           ansible-playbook nutanix_vm_prov/snow_integration.yml
-      
+
+      - name: Verify tfvars file
+        run: |
+          find . -name "*.tfvars"
+          ls -ltr terraform/nutanix_vm_iac/
+    
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
