@@ -36,9 +36,9 @@ jobs:
         uses: hashicorp/setup-terraform@v3
 
       - name: Terraform Init
-        working-directory: terraform
+        working-directory: terraform/nutanix_vm_iac
         run: terraform init
 
       - name: Terraform Plan
-        working-directory: terraform
+        working-directory: terraform/nutanix_vm_iac
         run: terraform plan -var-file=terraform.tfvars
