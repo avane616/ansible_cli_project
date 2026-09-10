@@ -37,8 +37,12 @@ jobs:
 
       - name: Terraform Init
         working-directory: terraform/nutanix_vm_iac
+        env:
+          TF_VAR_prism: ${{ secrets.TF_VAR_PRISM }}
         run: terraform init
 
       - name: Terraform Plan
         working-directory: terraform/nutanix_vm_iac
+        env:
+          TF_VAR_prism: ${{ secrets.TF_VAR_PRISM }}
         run: terraform plan -var-file=terraform.tfvars
