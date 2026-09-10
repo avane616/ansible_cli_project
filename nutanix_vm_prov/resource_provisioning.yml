@@ -1,12 +1,12 @@
----
-- hosts: localhost
-  gather_facts: no
-  vars:
-    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
-    template_name: "Nutanix VM Provision"
-    servicenow_instance: "https://hcltechdemosls4.service-now.com"
-    assignment_group: "Nutanix%20Automation%20group"
-  tasks:
+# ---
+# - hosts: localhost
+#   gather_facts: no
+#   vars:
+  #   ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+  #   template_name: "Nutanix VM Provision"
+  #   servicenow_instance: "https://hcltechdemosls4.service-now.com"
+  #   assignment_group: "Nutanix%20Automation%20group"
+  # tasks:
     - name: Get variable mappings for each RITM with display values
       uri:
         url: "{{ servicenow_instance }}/api/now/table/sc_item_option_mtom?sysparm_query=request_item.number={{ ritm_number }}&sysparm_display_value=true"
