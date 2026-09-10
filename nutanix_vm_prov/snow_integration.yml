@@ -98,6 +98,11 @@
       loop: "{{ ritm_details.results }}"
       loop_control:
         label: "{{ item.json.result[0].number }}"
+    
+    - name: Set first RITM number
+      set_fact:
+        ritm_number: "{{ ritm_numbers | first }}"
+      when: ritm_numbers | length > 0
 
     - name: Run Resource Provisioning Tasks
       include_tasks: resource_provisioning.yml
