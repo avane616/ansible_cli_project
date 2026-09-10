@@ -120,7 +120,7 @@
 
     - name: Generate terraform tfvars file
       template:
-        src: templates/infra.tfvars.j2
+        src: templates/infra.yml.j2
         dest: "{{ playbook_dir }}/../terraform/nutanix_vm_iac/terraform.tfvars"
 
     # - name: Configure anible roles and playbook
