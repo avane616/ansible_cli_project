@@ -1,12 +1,17 @@
-# ---
-# - hosts: localhost
-#   gather_facts: no
-#   vars:
-  #   ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
-  #   template_name: "Nutanix VM Provision"
-  #   servicenow_instance: "https://hcltechdemosls4.service-now.com"
-  #   assignment_group: "Nutanix%20Automation%20group"
-  # tasks:
+    - name: Include required variables
+      block:
+        - include_vars: vars.yml
+          no_log: true
+
+        # - name: Clean PAT
+        #   set_fact:
+        #     clean_azpat: "{{ azpat | trim | replace('\n', '') }}"
+        #   no_log: true
+
+      rescue:
+        - debug:
+            msg: "{{ Variables are not configured properly }}" 
+            
     - name: Get variable mappings for each RITM with display values
       uri:
         url: "{{ servicenow_instance }}/api/now/table/sc_item_option_mtom?sysparm_query=request_item.number={{ ritm_number }}&sysparm_display_value=true"
@@ -117,20 +122,6 @@
     - name: Display Catalog task details
       debug:
         msg: "{{ catalog_tasks }}"
-
-    - name: Include required variables
-      block:
-        - include_vars: vars.yml
-          no_log: true
-
-        # - name: Clean PAT
-        #   set_fact:
-        #     clean_azpat: "{{ azpat | trim | replace('\n', '') }}"
-        #   no_log: true
-
-      rescue:
-        - debug:
-            msg: "{{ Variables are not configured properly }}" 
 
     # - name: Configure anible roles and playbook
     #   block:
