@@ -1,0 +1,64 @@
+  # - name: Disable Microsoft repo if present
+  #   ini_file:
+  #     path: /etc/yum.repos.d/packages-microsoft-com-prod.repo
+  #     section: packages-microsoft-com-prod
+  #     option: enabled
+  #     value: '0'
+  #   ignore_errors: yes
+  
+
+  # - name: Disable all SUSE Manager repos
+  #   shell: |
+  #     for f in /etc/yum.repos.d/susemanager*.repo; do
+  #       if [ -f "$f" ]; then
+  #         sed -i 's/^enabled=1/enabled=0/g' "$f"
+  #       fi
+  #     done
+  #   args:
+  #     executable: /bin/bash
+  #   ignore_errors: yes
+
+  - name: Ensure required packages are installed
+    package:
+      name: "{{ required_packages }}"
+      state: present
+    register: install_result
+    when: required_packages is defined and required_packages | length > 0
+
+  - name: Debug installation result
+    debug:
+      var: install_result
+    when: required_packages is defined and required_packages | length > 0
+
+  - name: Check if adcli is installed
+    command: rpm -q adcli
+    register: adcli_status
+    #ignore_errors: yes
+    when: required_packages is defined and required_packages | length > 0
+
+  - name: Check if realmd is installed
+    command: rpm -q realmd
+    register: realmd_status
+    #ignore_errors: yes
+    when: required_packages is defined and required_packages | length > 0
+
+  - name: Check if sssd is installed
+    command: rpm -q sssd
+    register: sssd_status
+    #ignore_errors: yes
+    when: required_packages is defined and required_packages | length > 0
+
+  - name: Show adcli status
+    debug:
+      var: adcli_status.stdout
+    when: required_packages is defined and required_packages | length > 0
+
+  - name: Show realmd status
+    debug:
+      var: realmd_status.stdout
+    when: required_packages is defined and required_packages | length > 0
+
+  - name: Show sssd status
+    debug:
+      var: sssd_status.stdout
+    when: required_packages is defined and required_packages | length > 0

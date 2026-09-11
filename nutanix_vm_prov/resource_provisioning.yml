@@ -1,12 +1,12 @@
----
-- hosts: localhost
-  gather_facts: no
-  vars:
-    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
-    template_name: "Nutanix VM Provision"
-    servicenow_instance: "https://hcltechdemosls4.service-now.com"
-    assignment_group: "Nutanix%20Automation%20group"
-  tasks:
+    - name: Include required variables
+      block:
+        - include_vars: vars.yml
+          no_log: true
+
+      rescue:
+        - debug:
+            msg: "{{ Variables are not configured properly }}" 
+            
     - name: Get variable mappings for each RITM with display values
       uri:
         url: "{{ servicenow_instance }}/api/now/table/sc_item_option_mtom?sysparm_query=request_item.number={{ ritm_number }}&sysparm_display_value=true"
@@ -118,125 +118,116 @@
       debug:
         msg: "{{ catalog_tasks }}"
 
-    - name: Include required variables
-      block:
-        - include_vars: vars.yml
-          no_log: true
+    - name: Generate terraform tfvars file
+      template:
+        src: templates/infra.yml.j2
+        dest: "{{ playbook_dir }}/../terraform/nutanix_vm_iac/terraform.tfvars"
 
-        - name: Clean PAT
-          set_fact:
-            clean_azpat: "{{ azpat | trim | replace('\n', '') }}"
-          no_log: true
-
-      rescue:
-        - debug:
-            msg: "{{ Variables are not configured properly }}" 
-
-    - name: Configure anible roles and playbook
-      block:
-         - include: code_compute.yml
-           delegate_to: localhost
-         - include: tf_conf.yml
-           #no_log: true
+    # - name: Configure anible roles and playbook
+    #   block:
+    #      - include: code_compute.yml
+    #        delegate_to: localhost
+    #      - include: tf_conf.yml
+    #        #no_log: true
   
-      rescue:
-        - debug:
-            msg: "{{ required roles are not configured }}"
+    #   rescue:
+    #     - debug:
+    #         msg: "{{ required roles are not configured }}"
 
-    - name: block to perform instance Creation operation using CI/CD
-      block:
-        - include: triggerpipeline.yml
-      rescue:
-        - debug:
-            msg: "{{ Unable to trigger }}"
-    - name: Block to fetch Terraform output and capture VM details
-      block:
+    # - name: block to perform instance Creation operation using CI/CD
+    #   block:
+    #     - include: triggerpipeline.yml
+    #   rescue:
+    #     - debug:
+    #         msg: "{{ Unable to trigger }}"
+    # - name: Block to fetch Terraform output and capture VM details
+    #   block:
         
-        - include: fetchoutput.yml
+    #     - include: fetchoutput.yml
 
-        - name: Read Terraform output JSON
-          slurp:
-            src: "/tmp/terraform_outputs/tf_output.json"
-          register: tf_output_raw
+    #     - name: Read Terraform output JSON
+    #       slurp:
+    #         src: "/tmp/terraform_outputs/tf_output.json"
+    #       register: tf_output_raw
 
-        - name: Parse Terraform output JSON
-          set_fact:
-            tf_output: "{{ tf_output_raw.content | b64decode | from_json }}"
+    #     - name: Parse Terraform output JSON
+    #       set_fact:
+    #         tf_output: "{{ tf_output_raw.content | b64decode | from_json }}"
 
-        - name: Capture VM name and IP
-          set_fact:
-            vm_ip: "{{ tf_output.New_VM_info.value.ip }}"
+    #     - name: Capture VM name and IP
+    #       set_fact:
+    #         vm_ip: "{{ tf_output.New_VM_info.value.ip }}"
 
-        - name: Show VM details
-          debug:
-            msg:
-              - "VM IP: {{ vm_ip }}"
-      rescue:
-        - debug:
-            msg: "Unable to fetch Terraform output or extract VM details"
+    #     - name: Show VM details
+    #       debug:
+    #         msg:
+    #           - "VM IP: {{ vm_ip }}"
+    #   rescue:
+    #     - debug:
+    #         msg: "Unable to fetch Terraform output or extract VM details"
 
-    - name: Prepare Dynamic inventory and perform post provisioning steps
-      block:
-        - name: Prepare Dynamic Inventory
-          set_fact:
-            ip_list: "{{ vm_ip.split(',') }}"
+    # - name: Prepare Dynamic inventory and perform post provisioning steps
+    #   block:
+    #     - name: Prepare Dynamic Inventory
+    #       set_fact:
+    #         ip_list: "{{ vm_ip.split(',') }}"
 
-        - name: Add IPs as temporary hosts
-          add_host:
-            name: "{{ item }}"
-            groups: dynamic_targets
-          loop: "{{ ip_list }}"
-      rescue:
-        - debug:
-            msg: "Unable to prepare inventory"
+    #     - name: Add IPs as temporary hosts
+    #       add_host:
+    #         name: "{{ item }}"
+    #         groups: dynamic_targets
+    #       loop: "{{ ip_list }}"
+    #   rescue:
+    #     - debug:
+    #         msg: "Unable to prepare inventory"
 
 #####################
 # Post Provisioning #
 #####################
 
-- name: Perform post provisioning activities
-  hosts: dynamic_targets
-  gather_facts: yes
-  become: yes
-  vars:
-    domain_user: "{{ lookup('env', 'domain_user') }}"
-    domain_password: "{{ lookup('env', 'domain_password') }}"
-    scom_user: "{{ lookup('env', 'scom_user') }}"
-    scom_password: "{{ lookup('env', 'scom_password') }}"
-    root_pass: "{{ lookup('env', 'root_pass') }}"
-  tasks:
-    - name: Perform post-provision tasks
-      block:
-        - include_vars: vars.yml
-          no_log: true
-          delegate_to: localhost
+# - name: Perform post provisioning activities
+#   hosts: dynamic_targets
+#   gather_facts: yes
+#   become: yes
+#   vars:
+#     domain_user: "{{ lookup('env', 'domain_user') }}"
+#     domain_password: "{{ lookup('env', 'domain_password') }}"
+#     scom_user: "{{ lookup('env', 'scom_user') }}"
+#     scom_password: "{{ lookup('env', 'scom_password') }}"
+#     root_pass: "{{ lookup('env', 'root_pass') }}"
+#   tasks:
+#     - name: Perform post-provision tasks
+#       block:
+#         - include_vars: vars.yml
+#           no_log: true
+#           delegate_to: localhost
 
-        - name: Clean PAT
-          set_fact:
-            clean_azpat: "{{ azpat | trim | replace('\n', '') }}"
-          no_log: true
-          delegate_to: localhost
+#         - name: Clean PAT
+#           set_fact:
+#             clean_azpat: "{{ azpat | trim | replace('\n', '') }}"
+#           no_log: true
+#           delegate_to: localhost
 
-        - include: code_compute.yml
-          delegate_to: localhost
+#         - include: code_compute.yml
+#           delegate_to: localhost
 
-        - include_role:
-            name: post_provisioning
-            tasks_from: postprov.yml
+#         - include_role:
+#             name: post_provisioning
+#             tasks_from: postprov.yml
 
-        - include_role:
-            name: post_provisioning
-            tasks_from: replacefiles.yml
+#         - include_role:
+#             name: post_provisioning
+#             tasks_from: replacefiles.yml
 
-        - include_role:
-            name: post_provisioning
-            tasks_from: updatesudoers.yml
+#         - include_role:
+#             name: post_provisioning
+#             tasks_from: updatesudoers.yml
 
-        - include_role:
-            name: post_provisioning
-            tasks_from: domainjoin.yml
+#         - include_role:
+#             name: post_provisioning
+#             tasks_from: domainjoin.yml
 
-      rescue:
-        - name: Handle failure in post-provision tasks
-          debug:
-            msg: "One or more post-provision tasks failed. Please check logs and retry."
+#       rescue:
+#         - name: Handle failure in post-provision tasks
+#           debug:
+#             msg: "One or more post-provision tasks failed. Please check logs and retry."

@@ -1,0 +1,29 @@
+
+    # - name: Check if system is already joined to domain
+    #   command: "realm list"
+    #   register: realm_status
+    #   changed_when: false
+
+    - name: Join domain if not already joined
+      #when: domain_name not in realm_status.stdout
+      expect:
+        command: "adcli join -U {{ domain_user }} --computer-ou='{{ computer_ou }}' {{ domain_name }}"
+        responses:
+          Password: "{{ domain_password }}"
+      register: join_result
+
+    - name: Restart sssd if domain was joined
+      when: join_result is defined and join_result.changed
+      service:
+        name: sssd
+        state: restarted
+
+    - name: Verify domain join
+      command: "realm list"
+      register: verify_join
+      changed_when: false
+
+    - name: Show domain join status
+      debug:
+        msg: "Domain join successful: {{ domain_name in verify_join.stdout }}"
+
