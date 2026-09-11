@@ -16,7 +16,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Verify Ansible Installation
-        run: ansible --version 2>&1 | tee /tmp/terraform-install.log
+        run: ansible --version 2>&1 | tee -a /tmp/terraform-install.log
 
       - name: Run ServiceNow Playbook
         run: |
@@ -28,16 +28,16 @@ jobs:
           ls -ltr terraform/nutanix_vm_iac/
           
       - name: Verify Terraform Installation
-        run: terraform -version 2>&1 | tee /tmp/terraform-install.log        
+        run: terraform -version 2>&1 | tee -a /tmp/terraform-install.log        
        
       - name: Terraform Init
         working-directory: terraform/nutanix_vm_iac
         env:
           TF_VAR_prism: ${{ secrets.TF_VAR_PRISM }}
-        run: terraform init 2>&1 | tee /tmp/terraform-install.log
+        run: terraform init 2>&1 | tee -a /tmp/terraform-install.log
 
       - name: Terraform Plan
         working-directory: terraform/nutanix_vm_iac
         env:
           TF_VAR_prism: ${{ secrets.TF_VAR_PRISM }}
-        run: terraform plan -var-file=terraform.tfvars 2>&1 | tee /tmp/terraform-install.log
+        run: terraform plan -var-file=terraform.tfvars 2>&1 | tee -a /tmp/terraform-install.log
