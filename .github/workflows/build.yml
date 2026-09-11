@@ -21,3 +21,20 @@ jobs:
       - name: Run ServiceNow Playbook
         run: |
           ansible-playbook nutanix_vm_prov/snow_integration.yml
+          
+      - name: Verify tfvars file
+        run: |
+          find . -name "*.tfvars"
+          ls -ltr terraform/nutanix_vm_iac/
+
+      - name: Terraform Init
+        working-directory: terraform/nutanix_vm_iac
+        env:
+          TF_VAR_prism: ${{ secrets.TF_VAR_PRISM }}
+        run: terraform init
+
+      - name: Terraform Plan
+        working-directory: terraform/nutanix_vm_iac
+        env:
+          TF_VAR_prism: ${{ secrets.TF_VAR_PRISM }}
+        run: terraform plan -var-file=terraform.tfvars
