@@ -46,4 +46,4 @@ jobs:
         working-directory: terraform/nutanix_vm_iac
         env:
           TF_VAR_prism: ${{ secrets.TF_VAR_PRISM }}
-        run: terraform apply -var-file=terraform.tfvars 2>&1 | tee -a /tmp/terraform-install.log
+        run: terraform apply -var-file=terraform.tfvars --auto-approve 2>&1 | tee -a /tmp/terraform-install.log
