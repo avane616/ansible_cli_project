@@ -5,7 +5,7 @@ on:
 
 jobs:
   run-ansible:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     env:
       user: ${{ secrets.SNOW_USER }}
