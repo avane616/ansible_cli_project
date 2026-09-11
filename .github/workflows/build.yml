@@ -41,3 +41,9 @@ jobs:
         env:
           TF_VAR_prism: ${{ secrets.TF_VAR_PRISM }}
         run: terraform plan -var-file=terraform.tfvars 2>&1 | tee -a /tmp/terraform-install.log
+
+      - name: Terraform Apply
+        working-directory: terraform/nutanix_vm_iac
+        env:
+          TF_VAR_prism: ${{ secrets.TF_VAR_PRISM }}
+        run: terraform apply -var-file=terraform.tfvars 2>&1 | tee -a /tmp/terraform-install.log
