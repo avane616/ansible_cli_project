@@ -104,6 +104,13 @@
         ritm_number: "{{ ritm_numbers | first }}"
       when: ritm_numbers | length > 0
 
+    - name: Run Resource Provisioning Tasks
+      include_tasks: resource_provisioning.yml
+      loop: "{{ ritm_numbers }}"
+      loop_control:
+        label: "{{ item }}"
+      register: job_result
+      
     # - name: Trigger AWX job template for each RITM
     #   uri:
     #     url: "http://10.223.17.5/api/v2/job_templates/9/launch/"
