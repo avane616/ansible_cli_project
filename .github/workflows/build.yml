@@ -22,6 +22,9 @@ jobs:
         run: |
           ansible-playbook nutanix_vm_prov/snow_integration.yml
           
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        
       - name: Verify tfvars file
         run: |
           find . -name "*.tfvars"
