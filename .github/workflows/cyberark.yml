@@ -19,14 +19,41 @@ jobs:
 
       - name: Fetch secret from CyberArk CCP
         id: cyberark
+        shell: bash
         run: |
-          RESPONSE=$(curl -sk -X GET \
-          "${CCP_URL}/AIMWebService/api/Accounts?AppID=${APP_ID}&Safe=${SAFE}&Object=${OBJECT}")
+          set +e
 
-          echo "$RESPONSE"
+          URL="${CCP_URL}/AIMWebService/api/Accounts?AppID=${APP_ID}&Safe=${SAFE}&Object=${OBJECT}"
 
-          USERNAME=$(echo "$RESPONSE" | jq -r '.UserName')
-          PASSWORD=$(echo "$RESPONSE" | jq -r '.Content')
+          echo "Calling CyberArk CCP..."
+          echo "URL: $URL"
+
+          HTTP_CODE=$(curl -k -v \
+            --output response.json \
+            --write-out "%{http_code}" \
+            "$URL")
+
+          RC=$?
+
+          echo "Curl Exit Code: $RC"
+          echo "HTTP Status Code: $HTTP_CODE"
+
+          echo "===== RESPONSE ====="
+          cat response.json || true
+          echo "===================="
+
+          if [ $RC -ne 0 ]; then
+            echo "Curl failed with exit code $RC"
+            exit $RC
+          fi
+
+          USERNAME=$(jq -r '.UserName // empty' response.json)
+          PASSWORD=$(jq -r '.Content // empty' response.json)
+
+          if [ -z "$USERNAME" ] || [ -z "$PASSWORD" ]; then
+            echo "Failed to extract credentials from CCP response."
+            exit 1
+          fi
 
           echo "::add-mask::$PASSWORD"
 
@@ -36,4 +63,3 @@ jobs:
       - name: Use Credentials
         run: |
           echo "Retrieved User: ${{ steps.cyberark.outputs.username }}"
-          # Password is masked
