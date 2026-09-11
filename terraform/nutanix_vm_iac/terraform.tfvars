@@ -1,5 +1,5 @@
 nutanix_subnet_name = "Sandbox_IPAM-Vlan91"
-template_name = "Poc-redhat"
+template_name = "ubuntu"
 cluster_name = "DNKD1VNCT001"
 vm_num_sockets = "2"
 vm_num_cores_per_socket = "1"
